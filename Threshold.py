@@ -5,14 +5,16 @@ from sklearn.metrics import confusion_matrix
 
 value = 0.10
 metric = "tpr"
-name="Abdo_US"
+name = "Abdo_US"
 
-file="***/threshold_outputs_"+str(value)+metric+".txt" #Saving output file
+file = "***/threshold_outputs_"+str(value)+metric+".txt"  # Saving output file
 sys.stdout = open(file, "w")
 
-print("Threshold Values for ",metric," ",value)
+print("Threshold Values for ", metric, " ", value)
 
-#Function for calculating outcome metrics based on threshold set above
+# Function for calculating outcome metrics based on threshold set above
+
+
 def calculate_threshold(preds, targets, indicator_value, indicator='tpr'):
     sorted_index = np.argsort(preds)[::-1]
 
@@ -60,113 +62,113 @@ def calculate_threshold(preds, targets, indicator_value, indicator='tpr'):
 
     return threshold
 
+
 print("______________________________________________________________________________________________________________________________")
 print("_______________________________________________________Primary_Dx_Label_Thresholds____________________________________________")
 print("______________________________________________________________________________________________________________________________")
 
 # Load data
-target_data=pd.read_pickle('***/test_dat.pkl')
+target_data = pd.read_pickle('***/test_dat.pkl')
 targets = target_data['PrimaryDx_Label'].to_numpy()
-print (target_data['PrimaryDx_Label'].value_counts())
+print(target_data['PrimaryDx_Label'].value_counts())
 
 print("_______________________________________________________NN_____________________________________________________________________")
 
-preds_NN=pd.read_csv('***/NN_proba.csv')
+preds_NN = pd.read_csv('***/NN_proba.csv')
 preds = preds_NN["0"].to_numpy()
 
 # Test the original CM at 0.5 threshold
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
-#cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+# cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-#cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+# cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
-
+print(cm)
 
 
 print("_______________________________________________________RF__________________________________________________")
 
 
-preds_RF=pd.read_csv('***/RF_proba.csv')
+preds_RF = pd.read_csv('***/RF_proba.csv')
 preds = preds_RF['0'].to_numpy()
 
 # Test the original CM at 0.5 threshold
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
-#cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+# cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-print (cm)
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+print(cm)
 
 print("_______________________________________________________LR__________________________________________________")
 
-preds_LR=pd.read_csv('***/LR_proba.csv')
+preds_LR = pd.read_csv('***/LR_proba.csv')
 preds = preds_LR['0'].to_numpy()
 
 # Test the original CM at 0.5 threshold
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-print (cm)
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+print(cm)
 
 print("______________________________________________________________________________________________________________________________")
 print("_______________________________________________________Combined_Label_Thresholds______________________________________________")
@@ -183,28 +185,27 @@ preds = preds_NN["0"].to_numpy()
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-print (cm)
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
-
+print(cm)
 
 
 print("_______________________________________________________RF__________________________________________________")
@@ -216,27 +217,27 @@ preds = preds_RF['0'].to_numpy()
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-print (cm)
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+print(cm)
 
 print("_______________________________________________________LR__________________________________________________")
 
@@ -246,27 +247,27 @@ preds = preds_LR['0'].to_numpy()
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-print (cm)
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+print(cm)
 
 
 print("______________________________________________________________________________________________________________________________")
@@ -275,7 +276,7 @@ print("_________________________________________________________________________
 
 # Load data
 targets = target_data[name].to_numpy()
-print (target_data[name].value_counts())
+print(target_data[name].value_counts())
 
 print("_______________________________________________________NN_____________________________________________________________________")
 
@@ -284,31 +285,30 @@ preds = preds_NN["0"].to_numpy()
 # Test the original CM at 0.5 threshold
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
-#cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+# cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-#cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+# cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
-
+print(cm)
 
 
 print("_______________________________________________________RF__________________________________________________")
@@ -319,27 +319,27 @@ preds = preds_RF['0'].to_numpy()
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-print (cm)
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+print(cm)
 
 print("_______________________________________________________LR__________________________________________________")
 
@@ -349,26 +349,26 @@ preds = preds_LR['0'].to_numpy()
 preds_05 = preds >= 0.5
 cm = confusion_matrix(targets, preds_05)
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 cm = confusion_matrix(targets, preds_05)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 print("Confusion Matrix for Original Set at 0.5: ")
-print (cm)
-print ("")
+print(cm)
+print("")
 
 # Get the threshold that results in us getting the ideal value we want for a specific indicator
 threshold = calculate_threshold(preds, targets, value, metric)
 
-print ("Ideal model threshold: " + str(threshold))
+print("Ideal model threshold: " + str(threshold))
 preds_i = preds >= threshold
 
 cm = confusion_matrix(targets, preds_i)
-print (cm)
+print(cm)
 
 cm = confusion_matrix(targets, preds_i)
 cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-print (cm)
+print(cm)
 
 sys.stdout.close()
