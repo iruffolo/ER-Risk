@@ -1,8 +1,7 @@
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 import numpy as np
-import time
 
 import torch
 import torch.optim as optim
@@ -217,10 +216,11 @@ if __name__ == "__main__":
     )
 
     # compute the class weights
-    class_wts = compute_class_weight(class_weight='balanced',
-                                     classes=np.unique(
-                                         data['binary_outcome'].values.tolist()),
-                                     y=data['binary_outcome'])
+    class_wts = compute_class_weight(
+        class_weight='balanced',
+        classes=np.unique(data['binary_outcome'].values.tolist()),
+        y=data['binary_outcome'])
+
     # convert class weights to tensor
     weights = torch.tensor(class_wts, dtype=torch.float)
     weights = weights.to(device)
@@ -289,10 +289,13 @@ if __name__ == "__main__":
     # optimizer parameters
     param_optimizer = list(model.named_parameters())
     no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
-    optimizer_parameters = [{'params': [p for n, p in param_optimizer
-                                        if not any(nd in n for nd in no_decay)], 'weight_decay': 0.001},
-                            {'params': [p for n, p in param_optimizer
-                                        if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}]
+    optimizer_parameters = [
+        {'params': [p for n, p in param_optimizer
+                    if not any(nd in n for nd in no_decay)],
+         'weight_decay': 0.001},
+        {'params': [p for n, p in param_optimizer
+                    if any(nd in n for nd in no_decay)],
+         'weight_decay': 0.0}]
 
     print('Preparing the optimizer...')
     optimizer = optim.AdamW(optimizer_parameters, lr=learning_rate)
@@ -308,7 +311,7 @@ if __name__ == "__main__":
 
         print('Training...')
         model.train()
-        total_loss, total_accuracy = 0, 0
+        total_loss = 0
 
         # empty list to save model predictions
         total_preds = []
@@ -356,8 +359,9 @@ if __name__ == "__main__":
         # compute the training loss of the epoch
         avg_loss = total_loss / len(traindata)
 
-        # predictions are in the form of (# of batches, size of batch, # of classes).
-        # reshape the predictions in form of (number of samples, no. of classes)
+        # predictions are in the form of
+        # (# of batches, size of batch, # of classes).
+        # reshape the predictions in form of (# of samples, # of classes)
         total_preds = np.concatenate(total_preds, axis=0)
 
         # returns the loss and predictions
@@ -369,7 +373,7 @@ if __name__ == "__main__":
         print("\nEvaluating...")
 
         model.eval()  # deactivate dropout layers
-        total_loss, total_accuracy = 0, 0
+        total_loss = 0
 
         # empty list to save the model predictions
         total_preds = []
@@ -413,7 +417,7 @@ if __name__ == "__main__":
     valid_losses = []
 
     # for each epoch perform training and evaluation
-    epochs = 2
+    epochs = 1
     for epoch in range(epochs):
 
         print('\n Epoch {:} / {:}'.format(epoch + 1, epochs))
