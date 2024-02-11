@@ -356,7 +356,7 @@ if __name__ == "__main__":
         # compute the training loss of the epoch
         avg_loss = total_loss / len(traindata)
 
-        # predictions are in the form of (no. of batches, size of batch, no. of classes).
+        # predictions are in the form of (# of batches, size of batch, # of classes).
         # reshape the predictions in form of (number of samples, no. of classes)
         total_preds = np.concatenate(total_preds, axis=0)
 
@@ -367,7 +367,6 @@ if __name__ == "__main__":
     def evaluate():
 
         print("\nEvaluating...")
-        t0 = time.time()
 
         model.eval()  # deactivate dropout layers
         total_loss, total_accuracy = 0, 0
@@ -379,11 +378,8 @@ if __name__ == "__main__":
         for step, batch in enumerate(valdata):
             # Progress update every 50 batches.
             if step % 50 == 0 and not step == 0:
-                # Calculate elapsed time in minutes.
-                elapsed = format_time(time.time() - t0)
                 # Report progress.
-                print('  Batch {:>5,}  of  {:>5,}.'.format(step, len(valdata)))
-                print(elapsed)
+                print('\tBatch {:>5,}  of  {:>5,}.'.format(step, len(valdata)))
 
             # push the batch to gpu
             batch = [t.to(device) for t in batch]
@@ -391,11 +387,12 @@ if __name__ == "__main__":
             sent_id, mask, token_type_ids, labels = batch
 
             # deactivate autograd
-            with torch.no_grad():  # Dont store any previous computations, thus freeing GPU space
+            # Dont store any previous computations, thus freeing GPU space
+            with torch.no_grad():
 
                 # model predictions
                 preds = model(sent_id, mask, token_type_ids)
-                # compute the validation loss between actual and predicted values
+                # compute the validation loss between actual and prediction
                 loss = cross_entropy(preds, labels)
                 total_loss = total_loss + loss.item()
                 preds = preds.detach().cpu().numpy()
@@ -404,7 +401,7 @@ if __name__ == "__main__":
             torch.cuda.empty_cache()
         # compute the validation loss of the epoch
         avg_loss = total_loss / len(valdata)
-        # reshape the predictions in form of (number of samples, no. of classes)
+        # reshape the predictions in form of (# of samples, # of classes)
         total_preds = np.concatenate(total_preds, axis=0)
 
         return avg_loss, total_preds
