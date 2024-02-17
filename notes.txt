@@ -1,0 +1,25 @@
+Only use HOME MEDS:
+    - Theraputic class -> Pharma Class (child)
+    - Pharma Class is more specific
+
+    - Med name is best, then pharma class
+
+Blood pressure only take 1st
+    - Convert to Celcius
+    - Split Systolic / Dyastolic 
+    - Calculate MAP = 1/3 * Sbp + 2/3 Dbp
+    - Pulse Pressue = Sbp-Dbp
+
+High freq emerg users
+Visits > 3
+Normal vitals
+    HR 60-100
+    RR 12-18
+    Sat 95-100
+    BP 120+-20 / 70+-20
+    Temp 36.0-37.5
+
+> 20 vists / year
+
+
+Number of patients vs Number of visits

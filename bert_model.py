@@ -4,11 +4,11 @@ import torch.nn.functional as F
 from transformers import BertModel, AutoModel
 
 
-class BERT_Arch(nn.Module):
+class BertClassifier(nn.Module):
 
     def __init__(self, n_classes, freeze_bert=True, fine_tune=True):
 
-        super(BERT_Arch, self).__init__()
+        super(BertClassifier, self).__init__()
         # Instantiating BERT model object
         self.bert = BertModel.from_pretrained(
             "emilyalsentzer/Bio_ClinicalBERT", return_dict=False)
@@ -23,6 +23,9 @@ class BERT_Arch(nn.Module):
                 for param in self.bert.encoder.layer[-1].parameters():
                     param.requires_grad = True
 
+        # Linear layer to reduce bert output size 
+        self.bert_output_reducer = nn.Linear(self.bert.config.hidden_size, 50)
+
         self.bert_drop_1 = nn.Dropout(0.3)
         self.fc = nn.Linear(self.bert.config.hidden_size,
                             self.bert.config.hidden_size)  # (768, 64)
@@ -32,20 +35,33 @@ class BERT_Arch(nn.Module):
                              n_classes)  # (768,2)
 
     def forward(self, input_ids, attention_mask, token_type_ids):
-        _, output = self.bert(
+        output, _ = self.bert(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids
         )
+
+        # TODO
+        # Reduce the dimensionality of the BERT output
+        # bert_output = self.bert_output_reducer(output)
+
+        # Concatenate BERT output and static data for the fully connected layers
+        # inputs = torch.cat([bert_output, x_static], dim=1)
+
+        # only get first token 'cls'
+        output = output[:, 0, :]
+        # output = output.view(-1, 768)
+
         output = self.bert_drop_1(output)
         output = self.fc(output)
         output = self.bn(output)
         output = self.bert_drop_2(output)
         output = self.out(output)
-        return output
+
+        return F.log_softmax(output, dim=1)
 
 
-class BertClassifier(nn.Module):
+class BertClassifier2(nn.Module):
     def __init__(self):
         super(BertClassifier, self).__init__()
 

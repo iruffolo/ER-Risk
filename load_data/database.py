@@ -89,7 +89,18 @@ class DatabaseLoader:
 
         return cleaned
 
+    @staticmethod
+    def add_to_notes(data):
+        """
+        Concatenates other features (i.e. chief complaint) into the notes.
+        """
+
+        new_notes = (data['VISIT_REASON'] + 
+                     data['clean_notes']).astype(str)
+
+        return new_notes
+
 
 if __name__ == "__main__":
 
-    dl = DataLoader()
+    dl = DatabaseLoader()

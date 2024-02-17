@@ -6,7 +6,8 @@ from torch.nn.utils import clip_grad_norm_
 
 class TrainingLoop:
 
-    def __init__(self, model, loss_fn, optimizer, device):
+    def __init__(self, model, loss_fn, optimizer, device,
+                 fn="models/bert_weights.pt"):
         self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -17,6 +18,8 @@ class TrainingLoop:
         # Empty lists to store training and validation loss of each epoch
         self.train_losses = list()
         self.valid_losses = list()
+
+        self.filename = fn
 
     def _train_bert(self, data):
         """
@@ -35,7 +38,7 @@ class TrainingLoop:
 
             # progress update after every 50 batches.
             if step % 50 == 0 and not step == 0:
-                print(f"\tBatch {step}  of  {len(data)}.")
+                print(f"\tBatch {step} of {len(data)}.")
 
             # push the batch to gpu
             batch = [r.to(self.device) for r in batch]
@@ -99,7 +102,7 @@ class TrainingLoop:
 
             # Progress update every 50 batches.
             if step % 50 == 0 and not step == 0:
-                print(f"\tBatch {step}  of  {len(data)}.")
+                print(f"\tBatch {step} of {len(data)}.")
 
             # push the batch to gpu
             batch = [t.to(self.device) for t in batch]
@@ -128,8 +131,7 @@ class TrainingLoop:
 
         return avg_loss, total_preds
 
-    def train(self, traindata, valdata, epochs=10, save=True,
-              filename='bert_weights.pt'):
+    def train(self, traindata, valdata, epochs=10, save=True):
         """
         Main training loop - trains and evals model, saving best version
         """
@@ -152,7 +154,7 @@ class TrainingLoop:
                     self.best_valid_loss = valid_loss
                     print('Saving model...')
                     # Save model weight's (you can also save it in .bin format)
-                    torch.save(self.model.state_dict(), filename)
+                    torch.save(self.model.state_dict(), self.filename)
 
             # append training and validation loss
             self.train_losses.append(train_loss)
@@ -161,7 +163,7 @@ class TrainingLoop:
             print(f'\nTraining Loss: {train_loss:.3f}')
             print(f'Validation Loss: {valid_loss:.3f}')
 
-    def test(self, testdata, folds, load=True, filename='bert_weights.pt'):
+    def test(self, testdata, folds, load=True):
         """
         Test loop
         """
@@ -176,25 +178,24 @@ class TrainingLoop:
             print('\nFold Model', fold_index)
 
             if load:
-                model = self.model.load_state_dict(torch.load(filename))
-                model.to(self.device)
-            else:
-                model = self.model
+                self.model.load_state_dict(torch.load(self.filename))
 
             # Put the model in evaluation mode.
-            model.eval()
+            self.model.eval()
 
             # Turn off the gradient calculations.
             torch.set_grad_enabled(False)
 
-            for i, batch in enumerate(testdata):
+            for step, batch in enumerate(testdata):
+                # Progress update every 50 batches.
+                if step % 50 == 0 and not step == 0:
+                    print(f"\tBatch {step} of {len(testdata)}.")
 
-                print(f"Batch {i+1}")
                 # push the batch to gpu
                 batch = [t.to(self.device) for t in batch]
                 sent_id, mask, token_type_ids, labels = batch
 
-                outputs = model(sent_id, mask, token_type_ids)
+                outputs = self.model(sent_id, mask, token_type_ids)
 
                 # Get the preds
                 preds = outputs[0]
@@ -203,7 +204,7 @@ class TrainingLoop:
                 val_preds = preds.detach().cpu().numpy()
 
                 # Stack the predictions.
-                if i == 0:  # first batch
+                if step == 0:  # first batch
                     stacked_val_preds = val_preds
 
                 else:

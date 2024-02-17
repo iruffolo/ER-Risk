@@ -2,24 +2,17 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
-
+import torch
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import classification_report, accuracy_score
-
-import torch
-import torch.optim as optim
-from torch import nn
-
 from transformers import (AutoTokenizer, get_linear_schedule_with_warmup)
 from torch.utils.data import (TensorDataset, DataLoader,
                               RandomSampler, SequentialSampler)
 
 from load_data.database import DatabaseLoader
-
 from train import TrainingLoop
-
-from bert_model import BERT_Arch, BertClassifier
+from bert_model import BertClassifier
 
 
 def get_data_loader(data, tokenizer, sampler, batch_size=16):
@@ -36,7 +29,7 @@ def get_data_loader(data, tokenizer, sampler, batch_size=16):
         return_token_type_ids=True,
         truncation=True,
         padding='longest',
-        return_attention_mask=True,
+        return_attention_mask=True
     )
 
     # convert lists to tensors
@@ -68,24 +61,21 @@ if __name__ == "__main__":
     # Get dataset from sqlite database
     database = DatabaseLoader("data/sqlite/db.sqlite")
 
-    notes = database.get_notes()
-    clean = database.clean_notes(notes, "load_data/acronyms.txt")
-
     data = database.get_data()
-    data['clean_notes'] = clean
-    data['binary_outcome'] = np.where(data['OUTCOME'] > 0, 1, 0)
+    notes = database.get_notes()
+    data['clean_notes'] = database.clean_notes(notes, "load_data/acronyms.txt")
+    data['clean_notes'] = database.add_to_notes(data)
 
-    # plt.hist(data['OUTCOME'])
-    # plt.show()
+    # Test for binary classifier
+    # data['OUTCOME'] = np.where(data['OUTCOME'] > 0, 1, 0)
+
+    sns.histplot(data['OUTCOME'], discrete=True)
+    plt.xticks([1,2,3])
+    plt.show()
 
     # Load Tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
         "emilyalsentzer/Bio_ClinicalBERT")
-
-    # Check note length, drop notes above 512 (max bert input tokens)
-    length = data['clean_notes'].map(tokenizer.encode).map(len)
-    idx = length[length > 512].index
-    data.drop(index=idx, inplace=True)
 
     # Create data split
     train_df, test_df = train_test_split(data, shuffle=True, train_size=0.80)
@@ -95,10 +85,6 @@ if __name__ == "__main__":
     print('Train data:', train_df.shape)
     print('Val data:', val_df.shape)
     print('Test data:', test_df.shape)
-
-    BATCH_SIZE = 16
-    learning_rate = 1e-3
-    steps_per_epoch = 20
 
     # Create pytorch dataloaders
     traindata = get_data_loader(train_df, tokenizer,
@@ -123,23 +109,23 @@ if __name__ == "__main__":
     weights = weights.to(device)
 
     # loss function
-    loss_function = nn.NLLLoss()
-    cross_entropy = nn.CrossEntropyLoss(weight=weights)
+    loss_function = torch.nn.NLLLoss()
+    cross_entropy = torch.nn.CrossEntropyLoss(weight=weights)
 
     class_names = np.unique(data['OUTCOME'])
 
     print('Downloading the pretrained BERT model...')
-    model = BERT_Arch(len(class_names))
+    model = BertClassifier(len(class_names))
     model.to(device)  # Model to GPU.
 
     # The pre-learned sections should have a smaller learning rate,
     # and the last total combined layer should be larger.
-    classifier = BertClassifier()
-    classifier.to(device)
-    optimizer = optim.Adam([
-        {'params': classifier.bert.encoder.layer[-1].parameters(), 'lr': 5e-5},
-        {'params': classifier.linear.parameters(), 'lr': 1e-4}
-    ])
+    # classifier = BertClassifier()
+    # classifier.to(device)
+    # optimizer = optim.Adam([
+    #     {'params': classifier.bert.encoder.layer[-1].parameters(), 'lr': 5e-5},
+    #     {'params': classifier.linear.parameters(), 'lr': 1e-4}
+    # ])
 
     # optimizer parameters
     param_optimizer = list(model.named_parameters())
@@ -153,8 +139,10 @@ if __name__ == "__main__":
          'weight_decay': 0.0}]
 
     print('Preparing the optimizer...')
-    optimizer = optim.AdamW(optimizer_parameters, lr=learning_rate)
-    steps = steps_per_epoch
+    learning_rate = 1e-3
+    steps = 20
+
+    optimizer = torch.optim.AdamW(optimizer_parameters, lr=learning_rate)
     scheduler = get_linear_schedule_with_warmup(
         optimizer,
         num_warmup_steps=0,
@@ -162,9 +150,9 @@ if __name__ == "__main__":
     )
 
     # Train and Test model
-    tl = TrainingLoop(model, cross_entropy, optimizer, device)
+    fn = "models/binary.pt"
+    tl = TrainingLoop(model, cross_entropy, optimizer, device, fn)
     tl.train(traindata, valdata, epochs=10)
-
     predictions, true_y = tl.test(testdata, folds=3)
 
     # Accuracy and classification report
