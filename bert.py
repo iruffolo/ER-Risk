@@ -74,15 +74,13 @@ if __name__ == "__main__":
     data['clean_notes'] = database.add_to_notes(data)
 
     enc = OneHotEncoder(handle_unknown='ignore')
-    # data['labels'] = pd.DataFrame(enc.fit_transform(data['OUTCOME'].toarray()))
     labels = pd.get_dummies(data['OUTCOME'], prefix='outcome').astype(int)
-
     data = data.join(labels)
 
     data.dropna(inplace=True)
 
     # Test for binary classifier
-    # data['OUTCOME'] = np.where(data['OUTCOME'] > 0, 1, 0)
+    data['OUTCOME'] = np.where(data['OUTCOME'] > 1, 1, 0)
 
     static_features = ["age", "systolic", "diastolic", "MAP", "pulse_pressure",
                        "TEMPERATURE", "PULSE", "RESP", "SpO2", "ACUITY"]
@@ -175,15 +173,15 @@ if __name__ == "__main__":
     )
 
     # Train and Test model
-    fn = "models/with_static_data_2.pt"
+    fn = "models/binary_only_static.pt"
     tl = TrainingLoop(model, cross_entropy, optimizer, device, fn)
-    # tl.train(traindata, valdata, epochs=20)
-    predictions, true_y = tl.test(testdata, folds=1)
+    tl.train(traindata, valdata, epochs=50)
+    predictions, true_y = tl.test(testdata, folds=3)
 
     # Accuracy and classification report
     acc = accuracy_score(true_y, predictions)
     cr = classification_report(true_y, predictions,
-                               target_names=['label', 'predicted'],
+                               target_names=['Outcome 0+1', 'Outcome 1+2'],
                                labels=class_names)
 
     print(f'Accuracy: {acc}')

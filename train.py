@@ -50,11 +50,6 @@ class TrainingLoop:
 
             # get model predictions for the current batch
             preds = self.model(sent_id, mask, token_type_ids, static_data)
-            print()
-            print(f"labels: {labels}")
-            print(f"one hot: {one_hot}")
-            print(f"preds: {preds}")
-            print()
 
             # compute loss
             loss = self.loss_fn(preds, labels)
@@ -260,6 +255,6 @@ class TrainingLoop:
         # This returns the column index of the max value in each row.
         predictions = np.argmax(avg_preds, axis=1)
 
-        true_y = [int(x[3].numpy().flatten()) for x in testdata]
+        true_y = np.array([x[3] for x in testdata]).flatten()[:len(predictions)]
 
         return predictions, true_y

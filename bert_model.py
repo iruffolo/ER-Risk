@@ -6,7 +6,8 @@ from transformers import BertModel, AutoModel
 
 class BertClassifier(nn.Module):
 
-    def __init__(self, n_classes, static_size=10, freeze_bert=True, fine_tune=True):
+    def __init__(self, n_classes, static_size=10,
+                 freeze_bert=True, fine_tune=True):
 
         super(BertClassifier, self).__init__()
         # Instantiating BERT model object
@@ -32,7 +33,8 @@ class BertClassifier(nn.Module):
         # Linear layer to reduce bert output size
         self.bert_output_reducer = nn.Linear(bert_size, reduced_size)
 
-        self.linear1 = nn.Linear(reduced_size + static_size, linear_size_1)
+        # self.linear1 = nn.Linear(reduced_size + static_size, linear_size_1)
+        self.linear1 = nn.Linear(static_size, linear_size_1)
         self.bn1 = nn.BatchNorm1d(linear_size_1)
         self.drop1 = nn.Dropout(0.3)
 
@@ -43,24 +45,24 @@ class BertClassifier(nn.Module):
         self.out = nn.Linear(linear_size_2, n_classes)
 
     def forward(self, input_ids, attention_mask, token_type_ids, static_data):
-        bert_output, _ = self.bert(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids
-        )
+        # bert_output, _ = self.bert(
+        #     input_ids=input_ids,
+        #     attention_mask=attention_mask,
+        #     token_type_ids=token_type_ids
+        # )
 
         # only get first token 'cls'
-        bert_output = bert_output[:, 0, :]
+        # bert_output = bert_output[:, 0, :]
         # output = output.view(-1, 768)
 
         # reduce bert output size
-        bert_output = self.bert_output_reducer(bert_output)
+        # bert_output = self.bert_output_reducer(bert_output)
 
         # Stack bert output with tabular data
-        inputs = cat([bert_output, static_data], dim=1).float()
+        # inputs = cat([bert_output, static_data], dim=1).float()
 
         # First fully connected layer
-        output = F.relu(self.linear1(inputs))
+        output = F.relu(self.linear1(static_data.float()))
         output = self.bn1(output)
         output = self.drop1(output)
 
