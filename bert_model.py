@@ -1,4 +1,4 @@
-from torch import nn
+from torch import nn, cat
 import torch.nn.functional as F
 
 from transformers import BertModel, AutoModel
@@ -6,7 +6,7 @@ from transformers import BertModel, AutoModel
 
 class BertClassifier(nn.Module):
 
-    def __init__(self, n_classes, freeze_bert=True, fine_tune=True):
+    def __init__(self, n_classes, static_size=10, freeze_bert=True, fine_tune=True):
 
         super(BertClassifier, self).__init__()
         # Instantiating BERT model object
@@ -23,42 +23,57 @@ class BertClassifier(nn.Module):
                 for param in self.bert.encoder.layer[-1].parameters():
                     param.requires_grad = True
 
-        # Linear layer to reduce bert output size 
-        self.bert_output_reducer = nn.Linear(self.bert.config.hidden_size, 50)
+        reduced_size = 50
+        linear_size_1 = 256
+        linear_size_2 = 64
 
-        self.bert_drop_1 = nn.Dropout(0.3)
-        self.fc = nn.Linear(self.bert.config.hidden_size,
-                            self.bert.config.hidden_size)  # (768, 64)
-        self.bn = nn.BatchNorm1d(768)  # (768)
-        self.bert_drop_2 = nn.Dropout(0.25)
-        self.out = nn.Linear(self.bert.config.hidden_size,
-                             n_classes)  # (768,2)
+        bert_size = self.bert.config.hidden_size
 
-    def forward(self, input_ids, attention_mask, token_type_ids):
-        output, _ = self.bert(
+        # Linear layer to reduce bert output size
+        self.bert_output_reducer = nn.Linear(bert_size, reduced_size)
+
+        self.linear1 = nn.Linear(reduced_size + static_size, linear_size_1)
+        self.bn1 = nn.BatchNorm1d(linear_size_1)
+        self.drop1 = nn.Dropout(0.3)
+
+        self.linear2 = nn.Linear(linear_size_1, linear_size_2)
+        self.bn2 = nn.BatchNorm1d(linear_size_2)
+        self.drop2 = nn.Dropout(0.25)
+
+        self.out = nn.Linear(linear_size_2, n_classes)
+
+    def forward(self, input_ids, attention_mask, token_type_ids, static_data):
+        bert_output, _ = self.bert(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids
         )
 
-        # TODO
-        # Reduce the dimensionality of the BERT output
-        # bert_output = self.bert_output_reducer(output)
-
-        # Concatenate BERT output and static data for the fully connected layers
-        # inputs = torch.cat([bert_output, x_static], dim=1)
-
         # only get first token 'cls'
-        output = output[:, 0, :]
+        bert_output = bert_output[:, 0, :]
         # output = output.view(-1, 768)
 
-        output = self.bert_drop_1(output)
-        output = self.fc(output)
-        output = self.bn(output)
-        output = self.bert_drop_2(output)
+        # reduce bert output size
+        bert_output = self.bert_output_reducer(bert_output)
+
+        # Stack bert output with tabular data
+        inputs = cat([bert_output, static_data], dim=1).float()
+
+        # First fully connected layer
+        output = F.relu(self.linear1(inputs))
+        output = self.bn1(output)
+        output = self.drop1(output)
+
+        # Second fully connected layer
+        output = F.relu(self.linear2(output))
+        output = self.bn2(output)
+        output = self.drop2(output)
+
+        # Classifier
         output = self.out(output)
 
-        return F.log_softmax(output, dim=1)
+        return output
+        # return F.softmax(output, dim=1)
 
 
 class BertClassifier2(nn.Module):

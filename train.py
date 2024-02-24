@@ -1,7 +1,7 @@
 import numpy as np
 import torch
-import pandas as pd
 from torch.nn.utils import clip_grad_norm_
+import torch.nn.functional as F
 
 
 class TrainingLoop:
@@ -43,13 +43,18 @@ class TrainingLoop:
             # push the batch to gpu
             batch = [r.to(self.device) for r in batch]
 
-            sent_id, mask, token_type_ids, labels = batch
+            sent_id, mask, token_type_ids, labels, one_hot, static_data = batch
 
             # clear previously calculated gradients
             self.model.zero_grad()
 
             # get model predictions for the current batch
-            preds = self.model(sent_id, mask, token_type_ids)
+            preds = self.model(sent_id, mask, token_type_ids, static_data)
+            print()
+            print(f"labels: {labels}")
+            print(f"one hot: {one_hot}")
+            print(f"preds: {preds}")
+            print()
 
             # compute loss
             loss = self.loss_fn(preds, labels)
@@ -106,14 +111,14 @@ class TrainingLoop:
 
             # push the batch to gpu
             batch = [t.to(self.device) for t in batch]
-            sent_id, mask, token_type_ids, labels = batch
+            sent_id, mask, token_type_ids, labels, one_hot, static_data = batch
 
             # deactivate autograd
             # Dont store any previous computations, thus freeing GPU space
             with torch.no_grad():
 
                 # model predictions
-                preds = self.model(sent_id, mask, token_type_ids)
+                preds = self.model(sent_id, mask, token_type_ids, static_data)
                 # compute the validation loss between actual and prediction
                 loss = self.loss_fn(preds, labels)
 
@@ -147,6 +152,7 @@ class TrainingLoop:
             valid_loss, _ = self._evaluate(valdata)
 
             print(f'Evaluation done for epoch {epoch+1}')
+            print(f"Losses: {train_loss}, {valid_loss}")
 
             # save the best model
             if save:
@@ -162,6 +168,27 @@ class TrainingLoop:
 
             print(f'\nTraining Loss: {train_loss:.3f}')
             print(f'Validation Loss: {valid_loss:.3f}')
+
+    def _get_accuracy(out, actual_labels, batchSize):
+        """
+        Computes the accuracy of a model's predictions for a given batch.
+
+        Parameters:
+        - out (Tensor): The log probabilities or logits returned by the model.
+        - actual_labels (Tensor): The actual labels for the batch.
+        - batchSize (int): The size of the batch.
+
+        Returns:
+        float: The accuracy for the batch.
+        """
+        # Get the predicted labels from the maximum value of log probabilities
+        predictions = out.max(dim=1)[1]
+        # Count the number of correct predictions
+        correct = (predictions == actual_labels).sum().item()
+        # Compute the accuracy for the batch
+        accuracy = correct / batchSize
+
+        return accuracy
 
     def test(self, testdata, folds, load=True):
         """
@@ -193,23 +220,24 @@ class TrainingLoop:
 
                 # push the batch to gpu
                 batch = [t.to(self.device) for t in batch]
-                sent_id, mask, token_type_ids, labels = batch
+                sent_id, mask, token_type_ids, labels, one_hot, static_data = batch
 
-                outputs = self.model(sent_id, mask, token_type_ids)
+                outputs = self.model(
+                    sent_id, mask, token_type_ids, static_data)
 
                 # Get the preds
-                preds = outputs[0]
+                probs = F.softmax(outputs, dim=1)
 
                 # Move preds to the CPU
-                val_preds = preds.detach().cpu().numpy()
+                val_probs = probs.detach().cpu().numpy()
 
                 # Stack the predictions.
                 if step == 0:  # first batch
-                    stacked_val_preds = val_preds
+                    stacked_val_preds = val_probs
 
                 else:
                     stacked_val_preds = np.vstack(
-                        (stacked_val_preds, val_preds))
+                        (stacked_val_preds, val_probs))
 
             test_preds.append(stacked_val_preds)
 
@@ -232,6 +260,6 @@ class TrainingLoop:
         # This returns the column index of the max value in each row.
         predictions = np.argmax(avg_preds, axis=1)
 
-        true_y = [int(x[3][0].numpy().flatten()) for x in testdata]
+        true_y = [int(x[3].numpy().flatten()) for x in testdata]
 
         return predictions, true_y

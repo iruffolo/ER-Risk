@@ -1,5 +1,6 @@
 import sqlite3
 import csv
+from datetime import datetime
 import pandas as pd
 
 
@@ -33,19 +34,31 @@ class DatabaseLoader:
         self.cursor.close()
         self.conn.close()
 
-    def get_data(self):
+    def get_data(self, table="train_data_vitals"):
         """
         Get data from train_data table
         """
-        query = "select * from train_data"
+        query = f"select * from {table}"
 
         self.cursor.execute(query)
         res = self.cursor.fetchall()
 
-        self.cursor.execute("PRAGMA table_info(train_data)")
+        self.cursor.execute(f"PRAGMA table_info({table})")
         cols = [c[1] for c in self.cursor.fetchall()]
 
         df = pd.DataFrame(res, columns=cols)
+
+        # Caclulate and insert BP metrics
+        df[['systolic', 'diastolic']] = df['BP'].str.split(
+            '/', expand=True).dropna().astype(int)
+
+        df["MAP"] = (df["systolic"].apply(lambda x: x * 1/3) +
+                     df["diastolic"].apply(lambda x: x * 2/3))
+
+        df["pulse_pressure"] = df["systolic"] - df["diastolic"]
+
+        df["age"] = pd.to_datetime(df['BIRTH_DATE']).apply(
+            lambda x: ((datetime.now() - x).days/365.2425)).astype(int)
 
         return (df)
 
@@ -53,7 +66,7 @@ class DatabaseLoader:
         """
         Get data from triage_notes table
         """
-        query = "select note_text from train_data"
+        query = "select note_text from train_data_vitals"
 
         self.cursor.execute(query)
         res = self.cursor.fetchall()
@@ -95,7 +108,7 @@ class DatabaseLoader:
         Concatenates other features (i.e. chief complaint) into the notes.
         """
 
-        new_notes = (data['VISIT_REASON'] + 
+        new_notes = (data['VISIT_REASON'] +
                      data['clean_notes']).astype(str)
 
         return new_notes
