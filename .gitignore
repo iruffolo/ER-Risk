@@ -1,6 +1,7 @@
 # Local
 data
 *.pt
+*.out
 models/
 
 # Byte-compiled / optimized / DLL files
