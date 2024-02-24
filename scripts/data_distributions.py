@@ -49,5 +49,12 @@ if __name__ == "__main__":
                          ax=ax)
         ax.set_title(f"Outcome: {i}")
 
+    print(f"MAX : {df['TEMPERATURE'].max(axis=0)}")
+    print(f"MIN : {df['TEMPERATURE'].min(axis=0)}")
+
+    print(df['TEMPERATURE'].loc[df['TEMPERATURE'] < 70])
+    print(df['RESP'].loc[df['RESP'] > 50])
+    print(df['SpO2'].loc[df['SpO2'] < 70])
+
     fig.tight_layout()
     plt.show()
