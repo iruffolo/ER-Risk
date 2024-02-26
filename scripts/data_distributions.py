@@ -15,13 +15,20 @@ if __name__ == "__main__":
     database = DatabaseLoader("../data/sqlite/db.sqlite")
 
     df = database.get_data()
+    sex = 'Female'
+
+    df = df.loc[df['SEX'] == sex]
+
+    df = df[df['TEMPERATURE'] > 90]
+    df = df[df['RESP'] < 50]
+    df = df[df['SpO2'] > 80]
 
     rows = 4
     cols = 4
 
     fig, axs = plt.subplots(nrows=rows, ncols=cols, figsize=(15, 10))
 
-    fig.suptitle("Distribtuions by Outcome")
+    fig.suptitle(f"Distribtuions by Outcome - {sex}")
 
     metrics = ["age", "systolic", "diastolic", "MAP", "pulse_pressure",
                "TEMPERATURE", "PULSE", "RESP", "SpO2"]
@@ -35,10 +42,12 @@ if __name__ == "__main__":
 
             ax = axs[r, c]
 
-            p = sns.histplot(df, x=metrics[idx], hue='OUTCOME',
+            p = sns.histplot(df,
+                             x=metrics[idx], hue='OUTCOME',
                              element='step',
                              palette=sns.color_palette(n_colors=4),
                              ax=ax)
+
             # p.legend_.remove()
             ax.set_title(f"Feature: {metrics[idx]}")
 

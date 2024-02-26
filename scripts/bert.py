@@ -80,7 +80,7 @@ if __name__ == "__main__":
     data.dropna(inplace=True)
 
     # Test for binary classifier
-    data['OUTCOME'] = np.where(data['OUTCOME'] > 1, 1, 0)
+    # data['OUTCOME'] = np.where(data['OUTCOME'] > 1, 1, 0)
 
     static_features = ["age", "systolic", "diastolic", "MAP", "pulse_pressure",
                        "TEMPERATURE", "PULSE", "RESP", "SpO2", "ACUITY"]
@@ -101,8 +101,11 @@ if __name__ == "__main__":
         train_df, shuffle=True, train_size=0.80)
 
     print('Train data:', train_df.shape)
+    print(train_df['OUTCOME'].value_counts())
     print('Val data:', val_df.shape)
+    print(val_df['OUTCOME'].value_counts())
     print('Test data:', test_df.shape)
+    print(test_df['OUTCOME'].value_counts())
 
     # Create pytorch dataloaders
     traindata = get_data_loader(train_df, tokenizer,
@@ -173,7 +176,7 @@ if __name__ == "__main__":
     )
 
     # Train and Test model
-    fn = "models/binary_only_static.pt"
+    fn = "../models/only_static.pt"
     tl = TrainingLoop(model, cross_entropy, optimizer, device, fn)
     tl.train(traindata, valdata, epochs=20)
     predictions, true_y = tl.test(testdata, folds=3)
@@ -181,7 +184,7 @@ if __name__ == "__main__":
     # Accuracy and classification report
     acc = accuracy_score(true_y, predictions)
     cr = classification_report(true_y, predictions,
-                               target_names=['Outcome 0+1', 'Outcome 1+2'],
+                               target_names=['0', '1', '2', '3'],
                                labels=class_names)
 
     print(f'Accuracy: {acc}')
@@ -190,5 +193,5 @@ if __name__ == "__main__":
     confusion_matrix = pd.crosstab(true_y, predictions,
                                    rownames=['True'], colnames=['Predicted'])
 
-    sns.heatmap(confusion_matrix, annot=True)
+    sns.heatmap(confusion_matrix, annot=True, fmt='d')
     plt.show()
