@@ -1,19 +1,24 @@
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import (accuracy_score, confusion_matrix,
-                             classification_report)
-from sklearn.utils.class_weight import compute_sample_weight
+import matplotlib.pyplot as plt
 import numpy as np
 
 # import cupy as cp
 import seaborn as sns
-import matplotlib.pyplot as plt
 import xgboost as xgb
-
 from load_data.database import DatabaseLoader
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    roc_auc_score,
+    roc_curve,
+)
+from sklearn.model_selection import train_test_split
+from sklearn.utils.class_weight import compute_sample_weight
+from transformers import BertModel
 
 if __name__ == "__main__":
 
-    database = DatabaseLoader("../data/sqlite/db.sqlite")
+    database = DatabaseLoader("../data/sqlite/7day.sqlite")
 
     df = database.get_data()
     df.columns = map(str.lower, df.columns)
@@ -27,15 +32,25 @@ if __name__ == "__main__":
 
     print(df["outcome"].value_counts())
 
-    feature_names = ["age", "systolic", "diastolic", "map",
-                     "pulse_pressure", "temperature", "pulse",
-                     "resp", "spo2", "sex", "visit_reason"]
+    feature_names = [
+        "age",
+        "systolic",
+        "diastolic",
+        "map",
+        "pulse_pressure",
+        "temperature",
+        "pulse",
+        "resp",
+        "spo2",
+        "sex",
+        "visit_reason",
+    ]
 
     features = df[feature_names]
     labels = df["outcome"].astype("category")
     # labels.replace(1, 0, inplace=True)
     # labels.replace(2, 1, inplace=True)
-    # labels.replace(3, 2, inplace=True)
+    labels.replace(3, 2, inplace=True)
 
     print(features)
     print(labels)
@@ -45,32 +60,32 @@ if __name__ == "__main__":
     print(features.dtypes)
     print(labels.dtypes)
 
-    x_train, x_test, y_train, y_test = train_test_split(features, labels,
-                                                        test_size=0.2,
-                                                        random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(
+        features, labels, test_size=0.2, random_state=42
+    )
 
-    x_train, x_val, y_train, y_val = train_test_split(x_train, y_train,
-                                                      test_size=0.2,
-                                                      random_state=42)
+    x_train, x_val, y_train, y_val = train_test_split(
+        x_train, y_train, test_size=0.2, random_state=42
+    )
 
     print("training shape = ", x_train.shape)
     print("test shape = ", x_test.shape)
     print("validation shape = ", x_val.shape)
 
-    params = {"objective": "multi:softmax",
-              # "max_depth": 3,
-              # "learning_rate": 0.05,
-              # "n_estimators": 1000,
-              # "subsample": 0.8,
-              # "colsample_bytree": 0.8,
-              # "reg_alpha": 0.1,
-              # "reg_lambda": 0.1,
-              "device": "cuda",
-              "num_class": labels.nunique()}
+    params = {
+        "objective": "multi:softmax",
+        # "max_depth": 3,
+        # "learning_rate": 0.05,
+        # "n_estimators": 1000,
+        # "subsample": 0.8,
+        # "colsample_bytree": 0.8,
+        # "reg_alpha": 0.1,
+        # "reg_lambda": 0.1,
+        "device": "cuda",
+        "num_class": labels.nunique(),
+    }
 
-    sample_wts = compute_sample_weight(
-        class_weight='balanced',
-        y=y_train)
+    sample_wts = compute_sample_weight(class_weight="balanced", y=y_train)
 
     model = xgb.XGBClassifier(**params, enable_categorical=True)
     model.fit(x_train, y_train, verbose=True, sample_weight=sample_wts)
@@ -130,13 +145,30 @@ if __name__ == "__main__":
     cm = confusion_matrix(y_test, y_test_predict)
 
     plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, cmap='Blues', fmt='d')
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
-    plt.title('Confusion Matrix')
+    sns.heatmap(cm, annot=True, cmap="Blues", fmt="d")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title("Confusion Matrix")
     plt.show()
 
     classification_rep = classification_report(y_test, y_test_predict)
 
     print("Classification Report:")
     print(classification_rep)
+
+    score = roc_auc_score(
+        y_test,
+        y_test_predict,
+        multi_class="ovr",
+        average="micro",
+    )
+    # fp, tp, threshold = roc_curve(y_test, y_test_predict)
+
+    # plt.subplots(1, figsize=(10, 10))
+    # plt.title("Receiver Operating Characteristic - DecisionTree")
+    # plt.plot(fp, tp, label="AUC = %0.2f" % roc_auc_score(y_test, y_test_predict))
+    # plt.plot([0, 1], ls="--")
+    # plt.plot([0, 0], [1, 0], c=".7"), plt.plot([1, 1], c=".7")
+    # plt.ylabel("True Positive Rate")
+    # plt.xlabel("False Positive Rate")
+    # plt.show()

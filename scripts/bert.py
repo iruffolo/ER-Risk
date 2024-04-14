@@ -1,20 +1,17 @@
 import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
-
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.utils.class_weight import compute_class_weight
-from sklearn.metrics import classification_report, accuracy_score
-from transformers import (AutoTokenizer, get_linear_schedule_with_warmup)
-from torch.utils.data import (TensorDataset, DataLoader,
-                              RandomSampler, SequentialSampler)
-
 from load_data.database import DatabaseLoader
+from model import BertClassifier, BertClassifier2
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.utils.class_weight import compute_class_weight
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from train import TrainingLoop
-from model import BertClassifier
+from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 
 def get_data_loader(data, tokenizer, sampler, static_features, batch_size=32):
@@ -25,39 +22,40 @@ def get_data_loader(data, tokenizer, sampler, static_features, batch_size=32):
 
     # Create encoding from tokenizer
     encoding = tokenizer.batch_encode_plus(
-        data['clean_notes'].values.tolist(),
+        data["clean_notes"].values.tolist(),
         max_length=512,
         add_special_tokens=True,  # Add '[CLS]' and '[SEP]'
         return_token_type_ids=True,
         truncation=True,
-        padding='longest',
-        return_attention_mask=True
+        padding="longest",
+        return_attention_mask=True,
     )
 
     # convert lists to tensors
-    seq = torch.tensor(encoding['input_ids'])
-    mask = torch.tensor(encoding['attention_mask'])
-    token_ids = torch.tensor(encoding['token_type_ids'])
+    seq = torch.tensor(encoding["input_ids"])
+    mask = torch.tensor(encoding["attention_mask"])
+    token_ids = torch.tensor(encoding["token_type_ids"])
     static_data = torch.tensor(data[static_features].values)
 
-    one_hot_cols = ['outcome_0', 'outcome_1', 'outcome_2', 'outcome_3']
+    one_hot_cols = ["outcome_0", "outcome_1", "outcome_2", "outcome_3"]
     y_one_hot = torch.tensor(data[one_hot_cols].values)
-    y = torch.tensor(data['OUTCOME'].values)
+    y = torch.tensor(data["OUTCOME"].values)
 
-    tensor_dataset = TensorDataset(
-        seq, mask, token_ids, y, y_one_hot, static_data)
+    tensor_dataset = TensorDataset(seq, mask, token_ids, y, y_one_hot, static_data)
 
-    return DataLoader(tensor_dataset, batch_size=batch_size,
-                      sampler=sampler(tensor_dataset),
-                      pin_memory=True,
-                      drop_last=True)
+    return DataLoader(
+        tensor_dataset,
+        batch_size=batch_size,
+        sampler=sampler(tensor_dataset),
+        pin_memory=True,
+        drop_last=True,
+    )
 
 
 if __name__ == "__main__":
 
     # Set device GPU
-    device = torch.device(
-        'cuda') if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     # Set all the seed values
     seed_val = 42
@@ -66,15 +64,15 @@ if __name__ == "__main__":
     torch.cuda.manual_seed_all(seed_val)
 
     # Get dataset from sqlite database
-    database = DatabaseLoader("../data/sqlite/db.sqlite")
+    database = DatabaseLoader("../data/sqlite/7day.sqlite")
 
     data = database.get_data()
     notes = database.get_notes()
-    data['clean_notes'] = database.clean_notes(notes, "load_data/acronyms.txt")
-    data['clean_notes'] = database.add_to_notes(data)
+    data["clean_notes"] = database.clean_notes(notes, "load_data/acronyms.txt")
+    data["clean_notes"] = database.add_to_notes(data)
 
-    enc = OneHotEncoder(handle_unknown='ignore')
-    labels = pd.get_dummies(data['OUTCOME'], prefix='outcome').astype(int)
+    enc = OneHotEncoder(handle_unknown="ignore")
+    labels = pd.get_dummies(data["OUTCOME"], prefix="outcome").astype(int)
     data = data.join(labels)
 
     data.dropna(inplace=True)
@@ -82,8 +80,18 @@ if __name__ == "__main__":
     # Test for binary classifier
     # data['OUTCOME'] = np.where(data['OUTCOME'] > 1, 1, 0)
 
-    static_features = ["age", "systolic", "diastolic", "MAP", "pulse_pressure",
-                       "TEMPERATURE", "PULSE", "RESP", "SpO2", "ACUITY"]
+    static_features = [
+        "age",
+        "systolic",
+        "diastolic",
+        "MAP",
+        "pulse_pressure",
+        "TEMPERATURE",
+        "PULSE",
+        "RESP",
+        "SpO2",
+        "ACUITY",
+    ]
 
     print(f"{data[static_features]}")
 
@@ -92,41 +100,40 @@ if __name__ == "__main__":
     # plt.show()
 
     # Load Tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(
-        "emilyalsentzer/Bio_ClinicalBERT")
+    tokenizer = AutoTokenizer.from_pretrained("emilyalsentzer/Bio_ClinicalBERT")
 
     # Create data split
     train_df, test_df = train_test_split(data, shuffle=True, train_size=0.80)
-    train_df, val_df = train_test_split(
-        train_df, shuffle=True, train_size=0.80)
+    train_df, val_df = train_test_split(train_df, shuffle=True, train_size=0.80)
 
-    print('Train data:', train_df.shape)
-    print(train_df['OUTCOME'].value_counts())
-    print('Val data:', val_df.shape)
-    print(val_df['OUTCOME'].value_counts())
-    print('Test data:', test_df.shape)
-    print(test_df['OUTCOME'].value_counts())
+    print("Train data:", train_df.shape)
+    print(train_df["OUTCOME"].value_counts())
+    print("Val data:", val_df.shape)
+    print(val_df["OUTCOME"].value_counts())
+    print("Test data:", test_df.shape)
+    print(test_df["OUTCOME"].value_counts())
 
     # Create pytorch dataloaders
-    traindata = get_data_loader(train_df, tokenizer,
-                                sampler=RandomSampler,
-                                static_features=static_features)
-    valdata = get_data_loader(val_df, tokenizer,
-                              sampler=SequentialSampler,
-                              static_features=static_features)
-    testdata = get_data_loader(test_df, tokenizer,
-                               sampler=SequentialSampler,
-                               static_features=static_features)
+    traindata = get_data_loader(
+        train_df, tokenizer, sampler=RandomSampler, static_features=static_features
+    )
+    valdata = get_data_loader(
+        val_df, tokenizer, sampler=SequentialSampler, static_features=static_features
+    )
+    testdata = get_data_loader(
+        test_df, tokenizer, sampler=SequentialSampler, static_features=static_features
+    )
 
-    print('Number of batches in the train set', len(traindata))
-    print('Number of batches in the validation set', len(valdata))
-    print('Number of batches in the test set', len(testdata))
+    print("Number of batches in the train set", len(traindata))
+    print("Number of batches in the validation set", len(valdata))
+    print("Number of batches in the test set", len(testdata))
 
     # compute the class weights
     class_wts = compute_class_weight(
-        class_weight='balanced',
-        classes=np.unique(data['OUTCOME'].values.tolist()),
-        y=data['OUTCOME'])
+        class_weight="balanced",
+        classes=np.unique(data["OUTCOME"].values.tolist()),
+        y=data["OUTCOME"],
+    )
 
     # convert class weights to tensor
     weights = torch.tensor(class_wts, dtype=torch.float)
@@ -136,12 +143,13 @@ if __name__ == "__main__":
     # loss_function = torch.nn.NLLLoss()
     cross_entropy = torch.nn.CrossEntropyLoss(weight=weights)
 
-    class_names = np.unique(data['OUTCOME'])
+    class_names = np.unique(data["OUTCOME"])
 
-    print('Downloading the pretrained BERT model...')
-    model = BertClassifier(len(class_names),
-                           static_size=len(static_features),
-                           fine_tune=True)
+    print("Downloading the pretrained BERT model...")
+    # model = BertClassifier(
+    # len(class_names), static_size=len(static_features), fine_tune=True
+    # )
+    model = BertClassifier2()
     model.to(device)  # Model to GPU.
 
     # The pre-learned sections should have a smaller learning rate,
@@ -157,41 +165,47 @@ if __name__ == "__main__":
     param_optimizer = list(model.named_parameters())
     no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
     optimizer_parameters = [
-        {'params': [p for n, p in param_optimizer
-                    if not any(nd in n for nd in no_decay)],
-         'weight_decay': 0.001},
-        {'params': [p for n, p in param_optimizer
-                    if any(nd in n for nd in no_decay)],
-         'weight_decay': 0.0}]
+        {
+            "params": [
+                p for n, p in param_optimizer if not any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.001,
+        },
+        {
+            "params": [
+                p for n, p in param_optimizer if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
+    ]
 
-    print('Preparing the optimizer...')
+    print("Preparing the optimizer...")
     learning_rate = 1e-4
     steps = 20
 
     optimizer = torch.optim.AdamW(optimizer_parameters, lr=learning_rate)
     scheduler = get_linear_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=0,
-        num_training_steps=steps
+        optimizer, num_warmup_steps=0, num_training_steps=steps
     )
 
     # Train and Test model
-    fn = "../models/only_static.pt"
+    fn = "../models/bert2.pt"
     tl = TrainingLoop(model, cross_entropy, optimizer, device, fn)
-    tl.train(traindata, valdata, epochs=20)
+    tl.train(traindata, valdata, epochs=2)
     predictions, true_y = tl.test(testdata, folds=3)
 
     # Accuracy and classification report
     acc = accuracy_score(true_y, predictions)
-    cr = classification_report(true_y, predictions,
-                               target_names=['0', '1', '2', '3'],
-                               labels=class_names)
+    cr = classification_report(
+        true_y, predictions, target_names=["0", "1", "2", "3"], labels=class_names
+    )
 
-    print(f'Accuracy: {acc}')
+    print(f"Accuracy: {acc}")
     print(f"Classifiction:\n {cr}")
 
-    confusion_matrix = pd.crosstab(true_y, predictions,
-                                   rownames=['True'], colnames=['Predicted'])
+    confusion_matrix = pd.crosstab(
+        true_y, predictions, rownames=["True"], colnames=["Predicted"]
+    )
 
-    sns.heatmap(confusion_matrix, annot=True, fmt='d')
+    sns.heatmap(confusion_matrix, annot=True, fmt="d")
     plt.show()

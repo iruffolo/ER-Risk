@@ -1,18 +1,17 @@
-from torch import nn, cat
 import torch.nn.functional as F
-
-from transformers import BertModel, AutoModel
+from torch import cat, nn
+from transformers import AutoModel, BertModel
 
 
 class BertClassifier(nn.Module):
 
-    def __init__(self, n_classes, static_size=10,
-                 freeze_bert=True, fine_tune=True):
+    def __init__(self, n_classes, static_size=10, freeze_bert=True, fine_tune=False):
 
         super(BertClassifier, self).__init__()
         # Instantiating BERT model object
         self.bert = BertModel.from_pretrained(
-            "emilyalsentzer/Bio_ClinicalBERT", return_dict=False)
+            "emilyalsentzer/Bio_ClinicalBERT", return_dict=False
+        )
 
         # Freeze bert layers
         if freeze_bert:
@@ -80,23 +79,35 @@ class BertClassifier(nn.Module):
 
 class BertClassifier2(nn.Module):
     def __init__(self):
-        super(BertClassifier, self).__init__()
+        super(BertClassifier2, self).__init__()
 
         # self.bert = BertModel.from_pretrained('bert-base-uncased')
-        self.bert = AutoModel.from_pretrained(
-            "emilyalsentzer/Bio_ClinicalBERT")
+        # self.bert = AutoModel.from_pretrained("emilyalsentzer/Bio_ClinicalBERT")
+        self.bert = BertModel.from_pretrained(
+            "emilyalsentzer/Bio_ClinicalBERT", return_dict=False
+        )
+
+        for p in self.bert.parameters():
+            p.requires_grad = False
+
+        # If fine tuning bert, turn on only last layer.
+        if True:
+            for param in self.bert.encoder.layer[-1].parameters():
+                param.requires_grad = True
 
         # BERT hidden state size is 768, class number is 2
-        self.linear = nn.Linear(768, 2)
+        self.linear = nn.Linear(768, 4)
 
         # initialing weights and bias
         nn.init.normal_(self.linear.weight, std=0.02)
         nn.init.normal_(self.linear.bias, 0)
 
-    def forward(self, input_ids, attention_mask):
+    def forward(self, input_ids, attention_mask, token_type_ids, static_data=None):
 
         # get last_hidden_state
-        vec, _ = self.bert(input_ids)
+        vec, _ = self.bert(
+            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
+        )
 
         # only get first token 'cls'
         vec = vec[:, 0, :]

@@ -1,6 +1,7 @@
-import sqlite3
 import csv
+import sqlite3
 from datetime import datetime
+
 import pandas as pd
 
 
@@ -9,7 +10,7 @@ class DatabaseLoader:
     Data loader to handle connection to sqlite database for data
     """
 
-    def __init__(self, path='../data/sqlite/db.sqlite'):
+    def __init__(self, path="../data/sqlite/db.sqlite"):
         """
         Initializes connection to database
 
@@ -34,11 +35,11 @@ class DatabaseLoader:
         self.cursor.close()
         self.conn.close()
 
-    def get_data(self, table="train_data_vitals"):
+    def get_data(self, table="train_data"):
         """
         Get data from train_data table
         """
-        query = f"select * from {table}"
+        query = f"select * from {table} where IS_FF = 0;"
 
         self.cursor.execute(query)
         res = self.cursor.fetchall()
@@ -49,29 +50,34 @@ class DatabaseLoader:
         df = pd.DataFrame(res, columns=cols)
 
         # Caclulate and insert BP metrics
-        df[['systolic', 'diastolic']] = df['BP'].str.split(
-            '/', expand=True).dropna().astype(int)
+        df[["systolic", "diastolic"]] = (
+            df["BP"].str.split("/", expand=True).dropna().astype(int)
+        )
 
-        df["MAP"] = (df["systolic"].apply(lambda x: x * 1/3) +
-                     df["diastolic"].apply(lambda x: x * 2/3))
+        df["MAP"] = df["systolic"].apply(lambda x: x * 1 / 3) + df["diastolic"].apply(
+            lambda x: x * 2 / 3
+        )
 
         df["pulse_pressure"] = df["systolic"] - df["diastolic"]
 
-        df["age"] = pd.to_datetime(df['BIRTH_DATE']).apply(
-            lambda x: ((datetime.now() - x).days/365.2425)).astype(int)
+        df["age"] = (
+            pd.to_datetime(df["BIRTH_DATE"])
+            .apply(lambda x: ((datetime.now() - x).days / 365.2425))
+            .astype(int)
+        )
 
-        return (df)
+        return df
 
     def get_notes(self):
         """
         Get data from triage_notes table
         """
-        query = "select note_text from train_data_vitals"
+        query = "select note_text from train_data where IS_FF = 0;"
 
         self.cursor.execute(query)
         res = self.cursor.fetchall()
 
-        return (res)
+        return res
 
     def put_notes(self, notes, table="clean_triage_notes"):
         query = f"""INSERT INTO {table}
@@ -87,9 +93,10 @@ class DatabaseLoader:
         Remove acronyms, symbols, and junk from notes
         """
 
-        with open(acronyms_path, 'r') as f:
-            acronyms = [row for row in csv.reader(f, skipinitialspace=True,
-                                                  delimiter='=')]
+        with open(acronyms_path, "r") as f:
+            acronyms = [
+                row for row in csv.reader(f, skipinitialspace=True, delimiter="=")
+            ]
         cleaned = [n[0] for n in notes]
 
         # Remove acronyms
@@ -108,8 +115,7 @@ class DatabaseLoader:
         Concatenates other features (i.e. chief complaint) into the notes.
         """
 
-        new_notes = (data['VISIT_REASON'] +
-                     data['clean_notes']).astype(str)
+        new_notes = (data["VISIT_REASON"] + data["clean_notes"]).astype(str)
 
         return new_notes
 
