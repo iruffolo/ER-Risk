@@ -44,21 +44,21 @@ class BertClassifier(nn.Module):
         self.out = nn.Linear(linear_size_2, n_classes)
 
     def forward(self, input_ids, attention_mask, token_type_ids, static_data):
-        # bert_output, _ = self.bert(
-        #     input_ids=input_ids,
-        #     attention_mask=attention_mask,
-        #     token_type_ids=token_type_ids
-        # )
+        bert_output, _ = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+        )
 
         # only get first token 'cls'
-        # bert_output = bert_output[:, 0, :]
-        # output = output.view(-1, 768)
+        bert_output = bert_output[:, 0, :]
+        bert_output = bert_output.view(-1, 768)
 
         # reduce bert output size
-        # bert_output = self.bert_output_reducer(bert_output)
+        bert_output = self.bert_output_reducer(bert_output)
 
         # Stack bert output with tabular data
-        # inputs = cat([bert_output, static_data], dim=1).float()
+        inputs = cat([bert_output, static_data], dim=1).float()
 
         # First fully connected layer
         output = F.relu(self.linear1(static_data.float()))
@@ -78,7 +78,7 @@ class BertClassifier(nn.Module):
 
 
 class BertClassifier2(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=4):
         super(BertClassifier2, self).__init__()
 
         # self.bert = BertModel.from_pretrained('bert-base-uncased')
@@ -95,8 +95,8 @@ class BertClassifier2(nn.Module):
             for param in self.bert.encoder.layer[-1].parameters():
                 param.requires_grad = True
 
-        # BERT hidden state size is 768, class number is 2
-        self.linear = nn.Linear(768, 4)
+        # BERT hidden state size is 768
+        self.linear = nn.Linear(768, num_classes)
 
         # initialing weights and bias
         nn.init.normal_(self.linear.weight, std=0.02)

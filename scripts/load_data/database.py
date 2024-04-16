@@ -101,7 +101,7 @@ class DatabaseLoader:
 
         # Remove acronyms
         for a in acronyms:
-            cleaned = [row.replace(a[0], a[1]) for row in cleaned]
+            cleaned = [row.replace(a[0], a[1]).strip() for row in cleaned]
 
         # Remove headers and COVID stuff
         # cleaned = [row.split(":") for row in cleaned]

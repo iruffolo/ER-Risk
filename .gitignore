@@ -2,6 +2,7 @@
 data
 *.pt
 *.out
+*.png
 models/
 
 # Byte-compiled / optimized / DLL files

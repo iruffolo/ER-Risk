@@ -117,3 +117,7 @@ Suspected COVID: Yes =
 Suspected COVID: No =
 Subjective: =
 Objective: =
+Covid: 0 doses =
+Covid: 1 doses =
+Covid: 2 doses =
+Covid: 3 doses =

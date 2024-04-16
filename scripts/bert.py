@@ -3,15 +3,16 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import torch
-from load_data.database import DatabaseLoader
-from model import BertClassifier, BertClassifier2
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from train import TrainingLoop
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
+
+from load_data.database import DatabaseLoader
+from model import BertClassifier, BertClassifier2
+from train import TrainingLoop
 
 
 def get_data_loader(data, tokenizer, sampler, static_features, batch_size=32):
@@ -37,7 +38,7 @@ def get_data_loader(data, tokenizer, sampler, static_features, batch_size=32):
     token_ids = torch.tensor(encoding["token_type_ids"])
     static_data = torch.tensor(data[static_features].values)
 
-    one_hot_cols = ["outcome_0", "outcome_1", "outcome_2", "outcome_3"]
+    one_hot_cols = ["outcome_0", "outcome_1", "outcome_2"]
     y_one_hot = torch.tensor(data[one_hot_cols].values)
     y = torch.tensor(data["OUTCOME"].values)
 
@@ -71,8 +72,11 @@ if __name__ == "__main__":
     data["clean_notes"] = database.clean_notes(notes, "load_data/acronyms.txt")
     data["clean_notes"] = database.add_to_notes(data)
 
+    data["OUTCOME"].replace(3, 2, inplace=True)
+
     enc = OneHotEncoder(handle_unknown="ignore")
     labels = pd.get_dummies(data["OUTCOME"], prefix="outcome").astype(int)
+    print(labels)
     data = data.join(labels)
 
     data.dropna(inplace=True)
@@ -146,10 +150,13 @@ if __name__ == "__main__":
     class_names = np.unique(data["OUTCOME"])
 
     print("Downloading the pretrained BERT model...")
-    # model = BertClassifier(
-    # len(class_names), static_size=len(static_features), fine_tune=True
-    # )
-    model = BertClassifier2()
+    model = BertClassifier(
+        len(class_names),
+        static_size=len(static_features),
+        # freeze_bert=False,
+        fine_tune=True,
+    )
+    # model = BertClassifier2(len(class_names))
     model.to(device)  # Model to GPU.
 
     # The pre-learned sections should have a smaller learning rate,
@@ -191,7 +198,7 @@ if __name__ == "__main__":
     # Train and Test model
     fn = "../models/bert2.pt"
     tl = TrainingLoop(model, cross_entropy, optimizer, device, fn)
-    tl.train(traindata, valdata, epochs=2)
+    tl.train(traindata, valdata, epochs=20)
     predictions, true_y = tl.test(testdata, folds=3)
 
     # Accuracy and classification report
